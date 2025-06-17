@@ -100,6 +100,11 @@ check_dependencies() {
 
 # Validate inputs
 validate_inputs() {
+    if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+        show_help
+        exit 0
+    fi
+
     if [ $# -lt 2 ]; then
         print_error "Usage: $0 <folder_path> <repo_name> [git_remote_url]"
         echo ""

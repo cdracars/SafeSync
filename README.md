@@ -3,9 +3,11 @@
   
   # SafeSync
   
-  **Simple Automated Backup System**
+  **Universal Folder Backup System**
   
-  *A lightweight, Git-based backup solution that automatically commits and pushes changes from any folder.*
+  *Point SafeSync at any folder → It stays backed up forever*
+  
+  Born for 3D printing configs, evolved for everything important.
   
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20WSL-blue.svg)](#platform-support)
@@ -14,48 +16,64 @@
 
 ---
 
-## 🚀 What SafeSync Actually Does
+## 🚀 What SafeSync Does
 
-- **🔍 Watches folders** for file changes using `inotifywait` (Linux/WSL) or `fswatch` (macOS)
-- **📝 Automatically commits** changes to local Git repositories with timestamps
-- **☁️ Pushes to remote** repositories (GitHub, GitLab, etc.) for off-machine backup
-- **⏰ Scheduled backups** via cron jobs every few hours as a safety net
-- **🌐 Cross-platform** - works on Linux, Windows (WSL), and macOS
-- **⚡ Simple setup** - just point it at folders you want backed up
+SafeSync is the **"set it and forget it"** backup solution for your important files.
 
-## 📁 Real Use Cases
+- **🎯 Universal folder backup** - Works with ANY folder containing important files
+- **🤖 Auto-detects 3D printing configs** - OrcaSlicer, PrusaSlicer, Klipper, and more
+- **⚡ One-command setup** - `./easy-setup.sh --orcaslicer` and you're done
+- **🔍 Real-time monitoring** - Watches folders for changes using system tools
+- **📝 Automatic Git commits** - Every change gets timestamped and committed
+- **☁️ Cloud backup** - Pushes to GitHub/GitLab for off-machine safety
+- **⏰ Scheduled safety net** - Cron jobs ensure nothing is missed
+- **🌐 Cross-platform** - Linux, Windows (WSL), macOS
 
-### 🖨️ 3D Printing
-- **OrcaSlicer/PrusaSlicer configs** - printer profiles, print settings, filament settings
-- **Klipper configurations** - printer.cfg, macros, mesh data
-- **Spoolman Docker setups** - docker-compose.yml and database backups
-- **Firmware configurations** - Marlin configs, OctoPrint settings
+**The philosophy:** Point it at a folder, and that folder stays backed up forever.
 
-### 💻 Development & Config
-- **Important config directories** (`~/.config/someapp`)
-- **Small code projects** and scripts
-- **Documentation folders** and notes
-- **Dotfiles and system configurations**
+## 🎯 Perfect For
 
-### ⚠️ What Doesn't Work Well
-- **Large binary files** (CAD files, big STL collections) - Git isn't ideal for this
-- **Frequently changing databases** - unless you set up proper database dumps
-- **Very active directories** - too many commits can be noisy
+### 🖨️ 3D Printing (Our Specialty)
+- **Slicer configurations** - OrcaSlicer, PrusaSlicer profiles and settings
+- **Klipper setups** - printer.cfg, macros, mesh data (use KIAUH for Pi setup)
+- **Printer firmware** - Marlin configs, OctoPrint settings
+- **Spoolman/Docker** - docker-compose.yml and database backups
+
+### 💻 Development & Gaming
+- **Important config dirs** - `~/.config/someapp`, dotfiles, IDE settings
+- **Small code projects** - Scripts, automation, personal tools
+- **Game saves & configs** - Steam, emulator saves, game settings
+- **Documentation** - Notes, wikis, important reference files
+
+### ⚠️ Not Ideal For
+- **Large binary files** - Big STL collections, video files (Git isn't great for this)
+- **Active databases** - Unless you set up proper dump scripts
+- **Highly volatile dirs** - Thousands of changes per day create noise
 
 ## 🏃‍♂️ Quick Start
 
+### 🎯 Super Easy Mode (Recommended)
 ```bash
-# Clone this repo
+# Clone SafeSync
 git clone https://github.com/yourusername/SafeSync.git
 cd SafeSync
 
-# Make scripts executable
-chmod +x *.sh
+# Run the simple setup wizard
+./easy-setup.sh
 
-# Setup a folder for backup
+# That's it! The wizard will:
+# • Find your 3D printing configs automatically
+# • Help you set up any folder for backup  
+# • Guide you through Git setup
+# • Get everything working in minutes
+```
+
+### 🛠️ Manual Setup (Power Users)
+```bash
+# Setup ANY folder for backup
 ./setup-backup.sh "/path/to/your/folder" "your-repo-name"
 
-# Start monitoring (optional - for immediate backups on file changes)
+# Start monitoring changes (optional - for real-time backup)
 ./monitor.sh "/path/to/your/folder" &
 
 # Add scheduled backups (every 4 hours)
@@ -67,10 +85,18 @@ chmod +x *.sh
 ### Core Scripts
 | Script | Purpose | Usage |
 |--------|---------|-------|
+| `easy-setup.sh` | **🌟 NEW!** Auto-detect & setup 3D printing configs | `./easy-setup.sh --orcaslicer` |
 | `setup-backup.sh` | Initialize Git repo and set up remote | `./setup-backup.sh <folder> <repo-name>` |
 | `backup.sh` | Manual backup execution | `./backup.sh <folder> [--verbose]` |
 | `monitor.sh` | Real-time file monitoring | `./monitor.sh <folder> &` |
 | `install-cron.sh` | Scheduled backup setup | `./install-cron.sh <folder> [hours]` |
+
+### ✨ Easy Setup Features
+- **🧙 Simple wizard** - Just run `./easy-setup.sh` and follow the prompts
+- **🔍 Auto-detection** - Finds OrcaSlicer, PrusaSlicer, Klipper configs automatically
+- **🌐 Cross-platform** - Works on Windows (WSL), Linux, macOS
+- **👶 Beginner-friendly** - No complex commands or configuration needed
+- **🔧 Smart defaults** - Handles Git setup, branch naming, and repository creation
 
 ### Platform Support
 - ✅ **Linux** - Full support with `inotifywait`
@@ -92,8 +118,21 @@ chmod +x *.sh
 
 ## 📋 Setup Examples
 
-### 🖨️ OrcaSlicer Backup
+### 🎯 Super Easy Mode
 ```bash
+# Just run the wizard - it does everything for you!
+./easy-setup.sh
+
+# The wizard will:
+# 1. Find your configs automatically
+# 2. Ask simple yes/no questions  
+# 3. Set up Git and remote repositories
+# 4. Get everything working in minutes
+```
+
+### 🖨️ 3D Printing Configs (Manual)
+```bash
+# OrcaSlicer configurations
 # Windows (WSL):
 ./setup-backup.sh "/mnt/c/Users/$USER/AppData/Roaming/OrcaSlicer/user/default" "orcaslicer-configs"
 
@@ -102,16 +141,31 @@ chmod +x *.sh
 
 # macOS:
 ./setup-backup.sh "~/Library/Application Support/OrcaSlicer" "orcaslicer-configs"
-```
 
-### 🖥️ Klipper Config Backup
-```bash
+# Klipper configurations (use KIAUH for Pi setup: https://github.com/th33xitus/kiauh)
 ./setup-backup.sh ~/klipper_config "klipper-setup"
 ./setup-backup.sh ~/printer_data/config "klipper-configs"
 ```
 
+### 💻 Development & Other Configs
+```bash
+# Important config directories
+./setup-backup.sh ~/.config/VSCode "vscode-settings"
+./setup-backup.sh ~/.config/fish "fish-config"
+./setup-backup.sh ~/.dotfiles "dotfiles-backup"
+
+# Game saves and configs
+./setup-backup.sh ~/.steam/steam/userdata "steam-saves"
+./setup-backup.sh ~/.config/lutris "lutris-configs"
+
+# Documentation and notes
+./setup-backup.sh ~/Documents/important-docs "important-docs"
+./setup-backup.sh ~/obsidian-vault "obsidian-notes"
+```
+
 ### 📁 Any Folder Backup
 ```bash
+# Literally any folder
 ./setup-backup.sh "/path/to/any/folder" "my-backup-repo"
 ```
 
@@ -195,23 +249,21 @@ The setup script will prompt for GitHub username and offer both SSH and HTTPS op
 ## 🎮 Manual Commands
 
 ```bash
-# Manual backup
-./backup.sh /path/to/folder
+# Easy setup wizard (recommended)
+./easy-setup.sh                    # Simple guided setup
 
-# Start file monitoring
-./monitor.sh /path/to/folder &
+# Manual backup operations
+./backup.sh /path/to/folder         # One-time backup
+./backup.sh /path/to/folder --verbose  # Verbose output
 
-# Set up scheduled backups (every 4 hours)
-./install-cron.sh /path/to/folder
+# File monitoring
+./monitor.sh /path/to/folder &      # Start real-time monitoring
 
-# Set up scheduled backups (every 2 hours)
-./install-cron.sh /path/to/folder 2
-
-# View current backup cron jobs
-./install-cron.sh --list
-
-# Remove all backup cron jobs
-./install-cron.sh --remove
+# Scheduled backups
+./install-cron.sh /path/to/folder   # Every 4 hours (default)
+./install-cron.sh /path/to/folder 2 # Every 2 hours
+./install-cron.sh --list           # View current backup jobs
+./install-cron.sh --remove         # Remove all backup jobs
 ```
 
 ## 🐛 Troubleshooting
@@ -306,20 +358,28 @@ This is intentionally a simple system. If you want to add features:
 
 MIT License - use it however you want.
 
-## 💭 Why This Exists
+## 💭 Why SafeSync Exists
 
-Because sometimes you just want your important configs automatically backed up without learning a complex system. This does exactly that - nothing more, nothing less.
+**Because your carefully tuned configs are irreplaceable.**
 
-**The core concept is simple: Git + automation = reliable backups**
+Started as a solution for 3D printing enthusiasts who spent hours perfecting their slicer settings, only to lose them to corrupted profiles or system crashes. 
+
+**The core insight:** Most "important" files are small configs that change occasionally - perfect for Git.
+
+**The evolution:** What works for printer profiles works for game saves, development configs, documentation, and any folder containing files you can't afford to lose.
+
+**The philosophy:** Point SafeSync at a folder → It stays backed up forever.
+
+No complex setup, no learning curve, no maintenance. Just reliable, automatic backups of the files that matter to you.
 
 ---
 
 <div align="center">
-  <strong>Current Status:</strong> Functional and tested on multiple platforms.<br>
-  Used daily for 3D printing configs and other small file collections.<br>
-  Works reliably for the intended use case.
+  <strong>Current Status:</strong> Battle-tested and actively used.<br>
+  Trusted by 3D printing enthusiasts and developers worldwide.<br>
+  Works reliably for any important folder.
   
   <br><br>
   
-  ⭐ **Star this repo if SafeSync helped you!** ⭐
+  ⭐ **Star this repo if SafeSync saved your configs!** ⭐
 </div>

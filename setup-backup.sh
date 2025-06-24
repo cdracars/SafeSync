@@ -141,16 +141,56 @@ validate_inputs() {
 # Check if Git is already initialized
 check_existing_git() {
     if [ -d "$FOLDER_PATH/.git" ]; then
-        print_warning "Git repository already exists in $FOLDER_PATH"
-        read -p "Continue anyway? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_status "Aborted by user"
-            exit 0
+        print_status "Found existing Git repository in $FOLDER_PATH"
+        
+        # Check if it has remotes
+        cd "$FOLDER_PATH"
+        if git remote -v | grep -q .; then
+            print_status "Repository already has remote(s):"
+            git remote -v
+            echo ""
+            read -p "Continue with existing setup? (Y/n): " -r
+            if [[ $REPLY =~ ^[Nn]$ ]]; then
+                print_status "Aborted by user"
+                exit 0
+            fi
+        else
+            print_warning "Repository exists but has no remote configured"
+            read -p "Add remote to existing repository? (Y/n): " -r
+            if [[ $REPLY =~ ^[Nn]$ ]]; then
+                print_status "Aborted by user"
+                exit 0
+            fi
         fi
         return 0
     fi
     return 1
+}
+
+# Detect or set the default branch
+detect_default_branch() {
+    cd "$FOLDER_PATH"
+    
+    # Check if we're in a repo and get current branch
+    if git rev-parse --git-dir > /dev/null 2>&1; then
+        local current_branch=$(git branch --show-current 2>/dev/null)
+        if [ -n "$current_branch" ]; then
+            DEFAULT_BRANCH="$current_branch"
+            print_status "Using existing branch: $DEFAULT_BRANCH"
+            return 0
+        fi
+    fi
+    
+    # Check Git's default branch configuration
+    local git_default=$(git config --global init.defaultBranch 2>/dev/null)
+    if [ -n "$git_default" ]; then
+        DEFAULT_BRANCH="$git_default"
+        print_status "Using Git's configured default branch: $DEFAULT_BRANCH"
+    else
+        # Use 'main' as default (modern standard)
+        DEFAULT_BRANCH="main"
+        print_status "Using default branch: $DEFAULT_BRANCH"
+    fi
 }
 
 # Create appropriate .gitignore based on detected files
@@ -231,8 +271,9 @@ init_git_repo() {
     
     cd "$FOLDER_PATH"
     
-    # Initialize git
-    git init
+    # Initialize git with proper default branch
+    detect_default_branch
+    git init -b "$DEFAULT_BRANCH"
     
     # Create .gitignore if it doesn't exist
     if [ ! -f ".gitignore" ]; then
@@ -264,7 +305,7 @@ init_git_repo() {
     
     git commit -m "Initial backup commit - $(date '+%Y-%m-%d %H:%M:%S')"
     
-    print_success "Git repository initialized"
+    print_success "Git repository initialized with branch: $DEFAULT_BRANCH"
 }
 
 # Set up remote repository
@@ -316,13 +357,13 @@ test_backup() {
     print_status "Testing backup system..."
     
     # Try to push
-    if git push -u origin master 2>/dev/null || git push -u origin main 2>/dev/null; then
+    if git push -u origin "$DEFAULT_BRANCH" 2>/dev/null; then
         print_success "Initial push successful!"
     else
         print_warning "Initial push failed. This is normal if the remote repository doesn't exist yet."
         echo "Please:"
         echo "1. Create the repository '$REPO_NAME' on your Git provider"
-        echo "2. Run: cd '$FOLDER_PATH' && git push -u origin master"
+        echo "2. Run: cd '$FOLDER_PATH' && git push -u origin $DEFAULT_BRANCH"
     fi
 }
 
@@ -350,7 +391,7 @@ if git status --porcelain | grep .; then
     git add .
     git commit -m "Automatic backup $(date '+%Y-%m-%d %H:%M:%S')"
     
-    if git push origin master 2>/dev/null || git push origin main 2>/dev/null; then
+    if git push origin "$DEFAULT_BRANCH" 2>/dev/null; then
         echo "✓ Backup completed and pushed successfully"
     else
         echo "✗ Push failed - changes are committed locally"
@@ -423,8 +464,16 @@ main() {
     check_dependencies
     validate_inputs "$@"
     
+    cd "$FOLDER_PATH"
+    
     if check_existing_git; then
         print_status "Working with existing Git repository"
+        detect_default_branch
+        
+        # Add .gitignore if it doesn't exist
+        if [ ! -f ".gitignore" ]; then
+            create_gitignore
+        fi
     else
         init_git_repo
     fi

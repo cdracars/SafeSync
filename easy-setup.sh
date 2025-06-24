@@ -31,14 +31,15 @@ print_banner() {
     echo ""
     echo "  🎯 Point SafeSync at any folder → It stays backed up forever"
     echo ""
-    echo -e "  ${YELLOW}� GitHub Account Required${NC}"
-    echo "  SafeSync backs up your files to GitHub repositories for safety."
-    echo "  A free GitHub account is required for this system to work."
+    echo -e "  ${YELLOW}📋 What This Wizard Does:${NC}"
+    echo "    1. Check and install required system tools"
+    echo "    2. Set up secure GitHub connection (SSH keys)"
+    echo "    3. Find your 3D printing configs automatically"
+    echo "    4. Create backup repositories and start protecting your files"
     echo ""
-    echo -e "  ${BLUE}�📋 Quick Requirements Check:${NC}"
-    echo "    • ✓ Git installed on your system"
-    echo "    • ✓ Free GitHub account (we'll help if you don't have one)"
-    echo "    • ✓ SSH key setup (we'll create and configure this for you)"
+    echo -e "  ${BLUE}� Requirements:${NC}"
+    echo "    • Free GitHub account (sign up at github.com if needed)"
+    echo "    • Administrator/sudo access (for installing tools)"
     echo ""
 }
 
@@ -96,6 +97,288 @@ press_enter() {
     read -p "$message"
 }
 
+# Check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Detect package manager
+detect_package_manager() {
+    if command_exists apt-get; then
+        echo "apt"
+    elif command_exists yum; then
+        echo "yum"
+    elif command_exists dnf; then
+        echo "dnf"
+    elif command_exists pacman; then
+        echo "pacman"
+    elif command_exists brew; then
+        echo "brew"
+    elif command_exists zypper; then
+        echo "zypper"
+    else
+        echo "unknown"
+    fi
+}
+
+# Install a package based on the detected package manager
+install_package() {
+    local package="$1"
+    local pm=$(detect_package_manager)
+    
+    print_info "Installing $package..."
+    
+    case $pm in
+        "apt")
+            if sudo apt-get update && sudo apt-get install -y "$package"; then
+                return 0
+            fi
+            ;;
+        "yum")
+            if sudo yum install -y "$package"; then
+                return 0
+            fi
+            ;;
+        "dnf")
+            if sudo dnf install -y "$package"; then
+                return 0
+            fi
+            ;;
+        "pacman")
+            if sudo pacman -S --noconfirm "$package"; then
+                return 0
+            fi
+            ;;
+        "brew")
+            if brew install "$package"; then
+                return 0
+            fi
+            ;;
+        "zypper")
+            if sudo zypper install -y "$package"; then
+                return 0
+            fi
+            ;;
+        *)
+            print_error "Unknown package manager. Please install $package manually."
+            return 1
+            ;;
+    esac
+    
+    print_error "Failed to install $package"
+    return 1
+}
+
+# Check and install Git
+check_and_install_git() {
+    if command_exists git; then
+        print_success "Git is already installed"
+        return 0
+    fi
+    
+    print_warning "Git is not installed"
+    echo ""
+    echo "  Git is required for SafeSync to backup your files."
+    echo "  It's the industry standard for version control."
+    echo ""
+    
+    if ask_yes_no "Install Git now?"; then
+        if install_package git; then
+            print_success "Git installed successfully!"
+            return 0
+        else
+            print_error "Failed to install Git"
+            echo ""
+            echo "  Please install Git manually:"
+            case $(detect_package_manager) in
+                "apt") echo "    sudo apt-get install git" ;;
+                "yum") echo "    sudo yum install git" ;;
+                "dnf") echo "    sudo dnf install git" ;;
+                "pacman") echo "    sudo pacman -S git" ;;
+                "brew") echo "    brew install git" ;;
+                "zypper") echo "    sudo zypper install git" ;;
+                *) echo "    Use your system's package manager to install git" ;;
+            esac
+            echo ""
+            return 1
+        fi
+    else
+        print_error "Git is required for SafeSync to work"
+        echo "Please install Git and run this script again."
+        return 1
+    fi
+}
+
+# Check and install file monitoring tools
+check_and_install_monitor_tools() {
+    local tool_needed=""
+    local install_cmd=""
+    
+    case $PLATFORM in
+        "Linux"|"WSL")
+            if command_exists inotifywait; then
+                print_success "inotify-tools is already installed"
+                return 0
+            fi
+            tool_needed="inotify-tools"
+            ;;
+        "macOS")
+            if command_exists fswatch; then
+                print_success "fswatch is already installed"
+                return 0
+            fi
+            tool_needed="fswatch"
+            ;;
+        *)
+            print_info "File monitoring tools not checked for this platform"
+            return 0
+            ;;
+    esac
+    
+    print_warning "$tool_needed is not installed"
+    echo ""
+    echo "  $tool_needed enables real-time file monitoring."
+    echo "  While not strictly required, it's highly recommended for automatic backups."
+    echo ""
+    
+    if ask_yes_no "Install $tool_needed now?" "y"; then
+        if install_package "$tool_needed"; then
+            print_success "$tool_needed installed successfully!"
+            return 0
+        else
+            print_warning "Failed to install $tool_needed"
+            echo ""
+            echo "  You can install it manually later:"
+            case $(detect_package_manager) in
+                "apt") echo "    sudo apt-get install $tool_needed" ;;
+                "yum") echo "    sudo yum install $tool_needed" ;;
+                "dnf") echo "    sudo dnf install $tool_needed" ;;
+                "pacman") 
+                    if [ "$tool_needed" = "inotify-tools" ]; then
+                        echo "    sudo pacman -S inotify-tools"
+                    else
+                        echo "    sudo pacman -S $tool_needed"
+                    fi
+                    ;;
+                "brew") echo "    brew install $tool_needed" ;;
+                "zypper") echo "    sudo zypper install $tool_needed" ;;
+                *) echo "    Use your system's package manager to install $tool_needed" ;;
+            esac
+            echo ""
+            echo "  SafeSync will still work without it, but monitoring will be manual."
+            return 0
+        fi
+    else
+        print_info "Skipping $tool_needed installation"
+        echo "  You can enable real-time monitoring later by installing $tool_needed"
+        return 0
+    fi
+}
+
+# Check and install GitHub CLI
+check_and_install_github_cli() {
+    if command_exists gh; then
+        print_success "GitHub CLI is already installed"
+        return 0
+    fi
+    
+    print_info "GitHub CLI not found"
+    echo ""
+    echo "  GitHub CLI enables automatic repository creation, making setup even easier."
+    echo "  Without it, you'll need to create repositories manually on GitHub."
+    echo ""
+    
+    if ask_yes_no "Install GitHub CLI for automatic repository creation?" "y"; then
+        local pm=$(detect_package_manager)
+        local install_cmd=""
+        
+        case $pm in
+            "apt")
+                # GitHub CLI installation for Ubuntu/Debian
+                if curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg >/dev/null 2>&1 && \
+                   echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null && \
+                   sudo apt update >/dev/null 2>&1 && \
+                   sudo apt install -y gh >/dev/null 2>&1; then
+                    print_success "GitHub CLI installed successfully!"
+                    return 0
+                else
+                    print_warning "Failed to install GitHub CLI automatically"
+                fi
+                ;;
+            "brew")
+                if brew install gh >/dev/null 2>&1; then
+                    print_success "GitHub CLI installed successfully!"
+                    return 0
+                else
+                    print_warning "Failed to install GitHub CLI with Homebrew"
+                fi
+                ;;
+            "yum"|"dnf")
+                if sudo $pm install -y gh >/dev/null 2>&1; then
+                    print_success "GitHub CLI installed successfully!"
+                    return 0
+                else
+                    print_warning "Failed to install GitHub CLI with $pm"
+                fi
+                ;;
+            *)
+                print_warning "Automatic installation not supported for this package manager"
+                ;;
+        esac
+        
+        echo ""
+        echo "  Manual installation instructions:"
+        echo "  • Visit: https://cli.github.com/manual/installation"
+        case $pm in
+            "apt") echo "  • Or try: curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg" ;;
+            "brew") echo "  • Or try: brew install gh" ;;
+            "yum"|"dnf") echo "  • Or try: sudo $pm install gh" ;;
+            "pacman") echo "  • Or try: sudo pacman -S github-cli" ;;
+        esac
+        echo ""
+        return 1
+    else
+        print_info "Skipping GitHub CLI installation"
+        echo "  You can install it later for easier repository management:"
+        echo "  • Visit: https://cli.github.com/"
+        return 0
+    fi
+}
+
+# Check all system requirements
+check_system_requirements() {
+    print_step "1" "Checking System Requirements"
+    
+    local git_ok=false
+    local monitor_ok=false
+    
+    # Check Git
+    if check_and_install_git; then
+        git_ok=true
+    fi
+    
+    # Check monitoring tools
+    if check_and_install_monitor_tools; then
+        monitor_ok=true
+    fi
+    
+    # Check GitHub CLI
+    if check_and_install_github_cli; then
+        github_cli_ok=true
+    fi
+    
+    echo ""
+    if [ "$git_ok" = true ]; then
+        print_success "System requirements satisfied!"
+        echo ""
+        return 0
+    else
+        print_error "Required dependencies missing"
+        echo "Please install missing requirements and run this script again."
+        return 1
+    fi
+}
+
 # Platform detection
 detect_platform() {
     case "$(uname -s)" in
@@ -111,10 +394,96 @@ detect_platform() {
     esac
 }
 
+# Install Git
+install_git() {
+    print_info "Installing Git..."
+    
+    case $PLATFORM in
+        "Linux"|"WSL")
+            if command -v apt >/dev/null 2>&1; then
+                sudo apt update && sudo apt install -y git
+            elif command -v yum >/dev/null 2>&1; then
+                sudo yum install -y git
+            elif command -v dnf >/dev/null 2>&1; then
+                sudo dnf install -y git
+            elif command -v pacman >/dev/null 2>&1; then
+                sudo pacman -S --noconfirm git
+            else
+                print_error "Cannot auto-install Git on this system"
+                echo "Please install Git manually and run this script again."
+                exit 1
+            fi
+            ;;
+        "macOS")
+            if command -v brew >/dev/null 2>&1; then
+                brew install git
+            else
+                print_error "Homebrew not found"
+                echo "Please install Git manually:"
+                echo "1. Install Xcode Command Line Tools: xcode-select --install"
+                echo "2. Or install Homebrew and run: brew install git"
+                exit 1
+            fi
+            ;;
+    esac
+    
+    if command -v git >/dev/null 2>&1; then
+        print_success "Git installed successfully!"
+    else
+        print_error "Git installation failed"
+        exit 1
+    fi
+}
+
+# Install inotify-tools for Linux/WSL
+install_inotify_tools() {
+    print_info "Installing inotify-tools..."
+    
+    if command -v apt >/dev/null 2>&1; then
+        sudo apt update && sudo apt install -y inotify-tools
+    elif command -v yum >/dev/null 2>&1; then
+        sudo yum install -y inotify-tools
+    elif command -v dnf >/dev/null 2>&1; then
+        sudo dnf install -y inotify-tools
+    elif command -v pacman >/dev/null 2>&1; then
+        sudo pacman -S --noconfirm inotify-tools
+    else
+        print_warning "Cannot auto-install inotify-tools on this system"
+        echo "Please install it manually: sudo apt install inotify-tools"
+        return 1
+    fi
+    
+    if command -v inotifywait >/dev/null 2>&1; then
+        print_success "inotify-tools installed successfully!"
+    else
+        print_warning "inotify-tools installation may have failed"
+    fi
+}
+
+# Install fswatch for macOS
+install_fswatch() {
+    print_info "Installing fswatch..."
+    
+    if command -v brew >/dev/null 2>&1; then
+        brew install fswatch
+    else
+        print_error "Homebrew not found"
+        echo "Please install Homebrew first: https://brew.sh"
+        echo "Then run: brew install fswatch"
+        return 1
+    fi
+    
+    if command -v fswatch >/dev/null 2>&1; then
+        print_success "fswatch installed successfully!"
+    else
+        print_warning "fswatch installation may have failed"
+    fi
+}
+
 # Get GitHub username and validate
 get_github_username() {
     echo ""
-    print_step "1" "GitHub Account Setup"
+    print_step "3" "GitHub Account Setup"
     echo "  SafeSync backs up your configs to GitHub repositories."
     echo "  This keeps them safe and accessible from anywhere."
     echo ""
@@ -164,48 +533,115 @@ get_github_username() {
 
 # Setup SSH key for GitHub authentication
 setup_ssh_key() {
-    print_info "Setting up secure connection to GitHub..."
+    print_step "2" "Setting Up GitHub Connection"
+    print_info "Checking secure connection to GitHub..."
+    
+    # First, test if GitHub connection already works
+    print_info "Testing existing GitHub connection..."
+    if ssh -o ConnectTimeout=10 -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
+        print_success "GitHub connection is already working perfectly! ✨"
+        
+        # Try to identify which key/method is being used
+        if [ -f "$HOME/.ssh/config" ] && grep -q "IdentityAgent.*1password" "$HOME/.ssh/config"; then
+            print_info "🔐 Using 1Password SSH agent - excellent security choice!"
+        elif ssh-add -l >/dev/null 2>&1 && ssh-add -l | grep -q "."; then
+            print_info "🔑 Using SSH agent with loaded keys"
+        else
+            print_info "🗂️ Using SSH key files from ~/.ssh/"
+        fi
+        
+        echo ""
+        return 0
+    fi
+    
+    # If connection failed, do comprehensive key detection
+    print_warning "GitHub connection not working yet. Let's fix that..."
     
     local ssh_key_path=""
     local ssh_key_type=""
+    local found_keys=()
     
-    # Check for existing SSH keys
-    if [ -f "$HOME/.ssh/id_ed25519.pub" ]; then
-        ssh_key_path="$HOME/.ssh/id_ed25519.pub"
-        ssh_key_type="ed25519"
-        print_success "Found existing SSH key (ed25519)"
-    elif [ -f "$HOME/.ssh/id_rsa.pub" ]; then
-        ssh_key_path="$HOME/.ssh/id_rsa.pub"
-        ssh_key_type="rsa"
-        print_success "Found existing SSH key (rsa)"
-    else
-        print_warning "No SSH key found"
+    # Look for all .pub files in .ssh directory
+    if [ -d "$HOME/.ssh" ]; then
+        while IFS= read -r -d '' pubkey; do
+            if [ -f "$pubkey" ] && [ -f "${pubkey%.pub}" ]; then
+                # Check if the private key exists and is readable
+                if [ -r "${pubkey%.pub}" ]; then
+                    found_keys+=("$pubkey")
+                fi
+            fi
+        done < <(find "$HOME/.ssh" -name "*.pub" -print0 2>/dev/null)
+    fi
+    
+    if [ ${#found_keys[@]} -gt 0 ]; then
+        # Use the first available key
+        ssh_key_path="${found_keys[0]}"
+        local key_name=$(basename "$ssh_key_path" .pub)
+        
+        # Determine key type from the key content
+        if grep -q "ssh-ed25519" "$ssh_key_path" 2>/dev/null; then
+            ssh_key_type="ed25519"
+        elif grep -q "ssh-rsa" "$ssh_key_path" 2>/dev/null; then
+            ssh_key_type="rsa"
+        elif grep -q "ecdsa-" "$ssh_key_path" 2>/dev/null; then
+            ssh_key_type="ecdsa"
+        else
+            ssh_key_type="unknown"
+        fi
+        
+        print_success "Found SSH key: $key_name ($ssh_key_type)"
+        
+        # If multiple keys found, show them
+        if [ ${#found_keys[@]} -gt 1 ]; then
+            print_info "Multiple SSH keys available:"
+            for key in "${found_keys[@]}"; do
+                local name=$(basename "$key" .pub)
+                local type="unknown"
+                if grep -q "ssh-ed25519" "$key" 2>/dev/null; then
+                    type="ed25519"
+                elif grep -q "ssh-rsa" "$key" 2>/dev/null; then
+                    type="rsa"
+                elif grep -q "ecdsa-" "$key" 2>/dev/null; then
+                    type="ecdsa"
+                fi
+                echo "      • $name ($type)"
+            done
+            echo "      Using: $key_name for GitHub setup"
+        fi
+        
         echo ""
-        echo "  SSH keys let you securely connect to GitHub without passwords."
-        echo "  We'll create one for you - it's quick and safe!"
+        print_info "SSH key found but GitHub connection not working."
+        print_info "This might be because:"
+        echo "  • Key not added to your GitHub account yet"
+        echo "  • SSH agent not running or key not loaded"
+        echo "  • Using 1Password but SSH agent not configured"
         echo ""
         
-        if ask_yes_no "Create an SSH key now?"; then
+        guide_ssh_key_upload "$ssh_key_path"
+    else
+        print_warning "No SSH key files found"
+        echo ""
+        echo "  SSH keys let you securely connect to GitHub without passwords."
+        echo "  We can:"
+        echo "  • Create a new SSH key for you (traditional method)"
+        echo "  • Help you set up 1Password SSH agent (more secure)"
+        echo ""
+        
+        if ask_yes_no "Create a new SSH key now?"; then
             create_ssh_key
             ssh_key_path="$HOME/.ssh/id_ed25519.pub"
             ssh_key_type="ed25519"
+            guide_ssh_key_upload "$ssh_key_path"
         else
-            print_error "SSH key is required for SafeSync to work with GitHub"
+            print_error "SSH authentication is required for SafeSync to work with GitHub"
             echo ""
-            echo "  You can create one manually later:"
-            echo "    ssh-keygen -t ed25519 -C \"your-email@example.com\""
+            echo "  Manual setup options:"
+            echo "  • Create SSH key: ssh-keygen -t ed25519 -C \"your-email@example.com\""
+            echo "  • 1Password SSH: https://developer.1password.com/docs/ssh/"
+            echo "  • GitHub SSH help: https://docs.github.com/en/authentication/connecting-to-github-with-ssh"
             echo ""
             exit 1
         fi
-    fi
-    
-    # Test SSH connection to GitHub
-    print_info "Testing connection to GitHub..."
-    if ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
-        print_success "GitHub connection working perfectly!"
-    else
-        print_warning "SSH key needs to be added to GitHub"
-        guide_ssh_key_upload "$ssh_key_path"
     fi
 }
 
@@ -347,11 +783,56 @@ check_repo_exists() {
     local repo_name="$1"
     local repo_url="https://github.com/$GITHUB_USERNAME/$repo_name"
     
-    # Try to check if the repository exists (this is a simple check)
-    if curl -s -o /dev/null -w "%{http_code}" "$repo_url" 2>/dev/null | grep -q "200"; then
+    # Try to check if the repository exists
+    local http_code=$(curl -s -o /dev/null -w "%{http_code}" "$repo_url" 2>/dev/null)
+    if [ "$http_code" = "200" ]; then
         return 0  # Repository exists
     else
         return 1  # Repository doesn't exist or can't access
+    fi
+}
+
+# Helper function to create GitHub repository (requires GitHub CLI)
+create_github_repo() {
+    local repo_name="$1"
+    
+    # Check if GitHub CLI is available
+    if ! command_exists gh; then
+        return 1  # GitHub CLI not available
+    fi
+    
+    # Check if user is authenticated
+    if ! gh auth status >/dev/null 2>&1; then
+        print_info "GitHub CLI found but not authenticated."
+        echo ""
+        if ask_yes_no "Authenticate with GitHub now?"; then
+            print_info "Starting GitHub authentication..."
+            echo ""
+            echo "  Please follow the instructions to authenticate:"
+            echo ""
+            if gh auth login; then
+                print_success "GitHub authentication successful!"
+            else
+                print_warning "GitHub authentication failed"
+                return 1
+            fi
+        else
+            print_info "Skipping GitHub authentication"
+            return 1
+        fi
+    fi
+    
+    print_info "Creating GitHub repository '$repo_name'..."
+    if gh repo create "$repo_name" --public --description "SafeSync backup for $repo_name" >/dev/null 2>&1; then
+        print_success "Repository '$repo_name' created successfully!"
+        return 0
+    else
+        print_warning "Failed to create repository with GitHub CLI"
+        echo "  This might be because:"
+        echo "  • Repository name already exists"
+        echo "  • Network connection issues"
+        echo "  • GitHub API limits"
+        return 1
     fi
 }
 
@@ -432,10 +913,18 @@ find_common_configs() {
 run_wizard() {
     print_banner
     
-    # First, get GitHub username
+    # Check system requirements first
+    if ! check_system_requirements; then
+        exit 1
+    fi
+    
+    # Set up SSH connection to GitHub
+    setup_ssh_key
+    
+    # Get GitHub username
     get_github_username
     
-    print_step "2" "Finding Your Config Folders"
+    print_step "4" "Finding Your Config Folders"
     find_common_configs
     
     if [ ${#FOUND_CONFIGS[@]} -gt 0 ]; then
@@ -462,20 +951,23 @@ run_wizard() {
         setup_custom_folder
     fi
     
-    print_step "3" "All Done!"
-    print_success "SafeSync is now protecting your configs!"
+    print_step "5" "Setup Complete!"
+    print_success "SafeSync is configured and ready to protect your configs!"
     echo ""
-    echo "  What happens next:"
+    echo "  📋 Important: Complete the setup by creating your GitHub repositories"
+    echo "     The script showed you the GitHub links and commands above."
+    echo ""
+    echo "  ⚡ Once repositories are created:"
     echo "  • Your files are automatically tracked in Git"
-    echo "  • Every change gets backed up to your remote repository"
+    echo "  • Every change gets backed up to your remote repository" 
     echo "  • You can set up monitoring and scheduled backups"
     echo ""
-    echo "  Useful commands:"
+    echo "  🛠️ Useful commands:"
     echo "  • Manual backup:     ./backup.sh [folder]"
     echo "  • Start monitoring:  ./monitor.sh [folder] &"
     echo "  • Schedule backups:  ./install-cron.sh [folder]"
     echo ""
-    print_success "Your configs are now safe! 🎉"
+    print_success "Your configs will be safe once you create the repositories! 🎉"
 }
 
 # Set up the configs we found
@@ -506,14 +998,43 @@ setup_found_configs() {
                 repo_name="$alt_name"
                 print_info "Using alternative name: $repo_name"
             fi
+        else
+            # Repository doesn't exist, offer to create it
+            if command -v gh >/dev/null 2>&1; then
+                echo ""
+                print_info "Repository '$repo_name' doesn't exist yet."
+                if ask_yes_no "Create repository automatically with GitHub CLI?"; then
+                    if create_github_repo "$repo_name"; then
+                        print_success "Repository created! Setup will continue..."
+                    else
+                        print_info "Automatic creation failed. You'll need to create it manually."
+                    fi
+                else
+                    print_info "You'll need to create the repository manually on GitHub."
+                fi
+            else
+                print_info "Repository '$repo_name' will need to be created manually on GitHub."
+            fi
         fi
         
         # Generate the GitHub URL
         local github_url="git@github.com:$GITHUB_USERNAME/$repo_name.git"
         
         if "$SCRIPT_DIR/setup-backup.sh" "$path" "$repo_name" "$github_url"; then
-            print_success "✓ $name backed up successfully"
-            echo "      🔗 Repository: https://github.com/$GITHUB_USERNAME/$repo_name"
+            print_success "✓ $name configured for backup"
+            echo "      🔗 Repository URL: https://github.com/$GITHUB_USERNAME/$repo_name"
+            echo ""
+            # Only show manual steps if the repository wasn't created automatically
+            if ! check_repo_exists "$repo_name"; then
+                print_info "📋 Next steps for $name:"
+                echo "      1. Create the repository '$repo_name' on GitHub:"
+                echo "         https://github.com/new"
+                echo "      2. Push your first backup:"
+                echo "         cd '$path' && git push -u origin main"
+            else
+                print_info "✅ Repository exists! You can now push your first backup:"
+                echo "         cd '$path' && git push -u origin main"
+            fi
         else
             print_error "✗ Failed to set up $name"
         fi
@@ -603,14 +1124,16 @@ main() {
         echo "your important configuration folders automatically."
         echo ""
         echo "What it does:"
+        echo "• Checks and installs required system tools (Git, inotify-tools/fswatch)"
+        echo "• Creates SSH keys and sets up secure GitHub connection"
         echo "• Detects common 3D printing software configs (OrcaSlicer, PrusaSlicer, Klipper)"
-        echo "• Sets up your GitHub account and SSH keys automatically"
-        echo "• Creates remote repositories and configures Git backup"
-        echo "• Guides you through the entire process step-by-step"
+        echo "• Configures Git repositories and prepares remote repository setup"
+        echo "• Guides you through creating GitHub repositories"
+        echo "• Provides step-by-step instructions to complete the setup"
         echo ""
         echo "Requirements:"
         echo "• Free GitHub account (we'll help you sign up if needed)"
-        echo "• Git installed on your system"
+        echo "• Administrator/sudo access (for installing system tools)"
         echo ""
         echo "Just run: $0"
         echo ""

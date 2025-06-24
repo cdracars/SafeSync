@@ -50,6 +50,33 @@ SafeSync is the **"set it and forget it"** backup solution for your important fi
 - **Active databases** - Unless you set up proper dump scripts
 - **Highly volatile dirs** - Thousands of changes per day create noise
 
+## 📋 Requirements
+
+Before you start, make sure you have:
+
+### ✅ **Required**
+- **Free GitHub account** 
+  - Sign up at: [github.com/join](https://github.com/join)
+  - No paid features needed - free tier works perfectly
+- **Administrator/sudo access** (for installing system tools if needed)
+
+### 🔧 **Auto-Configured by SafeSync**
+- **Git** - We'll install this for you if it's missing
+- **SSH key setup** - We'll create and configure this for you
+- **File monitoring tools** - We'll install these if you want them
+  - Linux/WSL: `inotify-tools` 
+  - macOS: `fswatch`
+- **GitHub CLI** - We'll offer to install this for automatic repository creation
+- **Git repository setup** - Initializes local repos and configures remotes
+
+### 💡 **Optional Enhancements**
+- **Cron jobs** for scheduled backups (we'll help set these up)
+- **Real-time monitoring** for instant backups on file changes
+- **Multiple folder setups** for organizing different config types
+- **GitHub CLI** (`gh`) for automatic repository creation (optional but convenient)
+
+Don't worry if you don't have everything - the setup wizard will guide you through getting what you need!
+
 ## 🏃‍♂️ Quick Start
 
 ### 🎯 Super Easy Mode (Recommended)
@@ -62,10 +89,13 @@ cd SafeSync
 ./easy-setup.sh
 
 # That's it! The wizard will:
+# • Check and install Git and monitoring tools for you
+# • Offer to install GitHub CLI for automatic repository creation
+# • Create SSH keys and set up GitHub connection securely
 # • Find your 3D printing configs automatically
 # • Help you set up any folder for backup  
-# • Guide you through Git setup
-# • Get everything working in minutes
+# • Create GitHub repositories automatically (if you want)
+# • Get everything working in minutes with minimal effort
 ```
 
 ### 🛠️ Manual Setup (Power Users)
@@ -94,6 +124,9 @@ cd SafeSync
 ### ✨ Easy Setup Features
 - **🧙 Simple wizard** - Just run `./easy-setup.sh` and follow the prompts
 - **🔍 Auto-detection** - Finds OrcaSlicer, PrusaSlicer, Klipper configs automatically
+- **🛠️ Dependency management** - Installs Git and monitoring tools for you
+- **🔐 SSH key creation** - Generates and helps you add keys to GitHub
+- **📦 Repository automation** - Installs GitHub CLI and creates repositories automatically
 - **🌐 Cross-platform** - Works on Windows (WSL), Linux, macOS
 - **👶 Beginner-friendly** - No complex commands or configuration needed
 - **🔧 Smart defaults** - Handles Git setup, branch naming, and repository creation
@@ -267,6 +300,31 @@ The setup script will prompt for GitHub username and offer both SSH and HTTPS op
 ```
 
 ## 🐛 Troubleshooting
+
+<details>
+<summary>🏗️ "Repository needs to be created manually"</summary>
+
+SafeSync can create repositories automatically if you have GitHub CLI:
+
+```bash
+# If you missed it during setup, install GitHub CLI:
+# Ubuntu/Debian:
+curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list
+sudo apt update && sudo apt install gh
+
+# macOS:
+brew install gh
+
+# Then authenticate and create repository:
+gh auth login
+gh repo create your-repo-name --public
+
+# Manual option - Use GitHub web interface:
+# Go to: https://github.com/new
+# Create repository with the name shown in the setup output
+```
+</details>
 
 <details>
 <summary>🚫 "Git push failed"</summary>

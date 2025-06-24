@@ -312,7 +312,19 @@ init_git_repo() {
 setup_remote() {
     if [ -n "$GIT_REMOTE_URL" ]; then
         print_status "Setting up remote repository: $GIT_REMOTE_URL"
-        git remote add origin "$GIT_REMOTE_URL"
+        
+        # Check if remote already exists
+        if git remote get-url origin >/dev/null 2>&1; then
+            local existing_url=$(git remote get-url origin)
+            if [ "$existing_url" = "$GIT_REMOTE_URL" ]; then
+                print_status "Remote origin already configured correctly"
+            else
+                print_status "Updating remote origin URL"
+                git remote set-url origin "$GIT_REMOTE_URL"
+            fi
+        else
+            git remote add origin "$GIT_REMOTE_URL"
+        fi
     else
         print_status "Setting up GitHub remote (you'll need to create the repository first)"
         
@@ -345,7 +357,18 @@ setup_remote() {
                 ;;
         esac
         
-        git remote add origin "$GIT_REMOTE_URL"
+        # Check if remote already exists
+        if git remote get-url origin >/dev/null 2>&1; then
+            local existing_url=$(git remote get-url origin)
+            if [ "$existing_url" = "$GIT_REMOTE_URL" ]; then
+                print_status "Remote origin already configured correctly"
+            else
+                print_status "Updating remote origin URL"
+                git remote set-url origin "$GIT_REMOTE_URL"
+            fi
+        else
+            git remote add origin "$GIT_REMOTE_URL"
+        fi
     fi
     
     print_success "Remote repository configured: $GIT_REMOTE_URL"

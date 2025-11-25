@@ -82,7 +82,7 @@ Don't worry if you don't have everything - the setup wizard will guide you throu
 ### 🎯 Super Easy Mode (Recommended)
 ```bash
 # Clone SafeSync
-git clone https://github.com/yourusername/SafeSync.git
+git clone https://github.com/cdracars/SafeSync.git
 cd SafeSync
 
 # Run the simple setup wizard

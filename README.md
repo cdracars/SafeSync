@@ -14,6 +14,11 @@
   [![Shell](https://img.shields.io/badge/Shell-Bash-green.svg)](#)
 </div>
 
+## Support
+
+If SafeSync is useful to you, you can support its continued upkeep on
+[Ko-fi](https://ko-fi.com/cdracars66494).
+
 ---
 
 ## 🚀 What SafeSync Does
